@@ -17,6 +17,8 @@ A comprehensive BullMQ MCP (Model Context Protocol) server for managing BullMQ R
 
 ## Installation - BullMQ MCP Setup
 
+### NPM Installation
+
 ```bash
 npm install -g @adamhancock/bullmq-mcp
 ```
@@ -33,6 +35,20 @@ Or with yarn:
 yarn global add @adamhancock/bullmq-mcp
 ```
 
+### Docker Installation
+
+Pull the Docker image from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/adamhancock/bullmq-mcp:latest
+```
+
+Or use a specific version:
+
+```bash
+docker pull ghcr.io/adamhancock/bullmq-mcp:v1.0.0
+```
+
 ## Usage - Configure BullMQ MCP with Claude Desktop
 
 ### Claude Desktop Configuration
@@ -41,14 +57,26 @@ yarn global add @adamhancock/bullmq-mcp
 
 If you have the Claude CLI installed, you can add the BullMQ server with a single command:
 
+**Using npm package:**
 ```bash
 claude mcp add --scope user bullmq -- npx -y @adamhancock/bullmq-mcp
 ```
 
-With Redis URL environment variable:
+**Using Docker:**
 ```bash
-claude mcp add --scope user bullmq -e REDIS_URL=redis://localhost:6379 -- npx -y @adamhancock/bullmq-mcp
+claude mcp add --scope user bullmq -e REDIS_URL=redis://host.docker.internal:6379 -- docker run --rm -i ghcr.io/adamhancock/bullmq-mcp:latest
 ```
+
+**With Redis URL environment variable:**
+```bash
+# NPM version
+claude mcp add --scope user bullmq -e REDIS_URL=redis://localhost:6379 -- npx -y @adamhancock/bullmq-mcp
+
+# Docker version  
+claude mcp add --scope user bullmq -e REDIS_URL=redis://host.docker.internal:6379 -- docker run --rm -i ghcr.io/adamhancock/bullmq-mcp:latest
+```
+
+**Note**: When using Docker with `claude mcp add`, use `host.docker.internal` instead of `localhost` to connect to Redis running on your host machine.
 
 #### Manual Configuration
 
@@ -108,6 +136,23 @@ Using local installation:
   }
 }
 ```
+
+Using Docker:
+```json
+{
+  "mcpServers": {
+    "bullmq": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "ghcr.io/adamhancock/bullmq-mcp:latest"],
+      "env": {
+        "REDIS_URL": "redis://host.docker.internal:6379"
+      }
+    }
+  }
+}
+```
+
+Note: When using Docker, use `host.docker.internal` instead of `localhost` to connect to Redis running on your host machine.
 
 ### Available BullMQ MCP Tools
 
@@ -455,6 +500,15 @@ for (const status of statuses) {
    ```
    Add a test job to my-queue with some sample data
    ```
+
+### Docker Usage Notes
+
+When using the Docker version:
+
+- **Redis Connection**: Use `host.docker.internal:6379` instead of `localhost:6379` to connect to Redis running on your host
+- **Environment Variables**: Set `REDIS_URL=redis://host.docker.internal:6379` for automatic connection
+- **Network Access**: The Docker container needs network access to reach your Redis instance
+- **Persistence**: The container is ephemeral - all data is stored in Redis, not the container
 
 ## Common BullMQ MCP Use Cases
 
