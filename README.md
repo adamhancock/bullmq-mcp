@@ -64,7 +64,7 @@ claude mcp add --scope user bullmq -- npx -y @adamhancock/bullmq-mcp
 
 **Using Docker:**
 ```bash
-claude mcp add --scope user bullmq -e REDIS_URL=redis://host.docker.internal:6379 -- docker run --rm -i ghcr.io/adamhancock/bullmq-mcp:latest
+claude mcp add-json bullmq --scope user '{"command": "docker", "args": ["run", "-i", "--rm", "-e", "REDIS_URL=redis://host.docker.internal:6379", "ghcr.io/adamhancock/bullmq-mcp:latest"], "scope": "user"}'
 ```
 
 **With Redis URL environment variable:**
@@ -72,8 +72,8 @@ claude mcp add --scope user bullmq -e REDIS_URL=redis://host.docker.internal:637
 # NPM version
 claude mcp add --scope user bullmq -e REDIS_URL=redis://localhost:6379 -- npx -y @adamhancock/bullmq-mcp
 
-# Docker version  
-claude mcp add --scope user bullmq -e REDIS_URL=redis://host.docker.internal:6379 -- docker run --rm -i ghcr.io/adamhancock/bullmq-mcp:latest
+# Docker version with environment variable
+claude mcp add-json bullmq --scope user '{"command": "docker", "args": ["run", "-i", "--rm", "-e", "REDIS_URL=redis://host.docker.internal:6379", "ghcr.io/adamhancock/bullmq-mcp:latest"], "scope": "user"}'
 ```
 
 **Note**: When using Docker with `claude mcp add`, use `host.docker.internal` instead of `localhost` to connect to Redis running on your host machine.
