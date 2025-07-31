@@ -80,7 +80,7 @@ jobs:
           path: dist/
 
   publish-npm:
-    needs: [test-and-build, check-version]
+    needs: [test-and-build, check-version, create-git-tag]
     runs-on: ubuntu-latest
     if: needs.check-version.outputs.version-changed == 'true'
     steps:
@@ -127,8 +127,14 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git tag "v${{ needs.check-version.outputs.version }}"
-          git push origin "v${{ needs.check-version.outputs.version }}"
+          TAG="v${{ needs.check-version.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping tag creation"
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+            echo "Created and pushed tag $TAG"
+          fi
 
   build-and-push-docker:
     needs: [test-and-build, check-version, create-git-tag]
