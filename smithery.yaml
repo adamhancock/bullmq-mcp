@@ -1,0 +1,22 @@
+# Smithery configuration file: https://smithery.ai/docs/build/project-config
+
+startCommand:
+  type: stdio
+  commandFunction:
+    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    |-
+    (config) => ({
+      command: 'node',
+      args: ['dist/index.js'],
+      env: config.redisUrl ? { REDIS_URL: config.redisUrl } : undefined
+    })
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required: []
+    properties:
+      redisUrl:
+        type: string
+        description: Optional Redis connection URL (e.g., redis://user:pass@host:6379/0)
+  exampleConfig:
+    redisUrl: redis://localhost:6379
