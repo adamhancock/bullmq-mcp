@@ -1,0 +1,62 @@
+{
+  "name": "@adamhancock/bullmq-mcp",
+  "version": "1.0.0",
+  "description": "Model Context Protocol server for BullMQ job queue management",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "bullmq-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "bullmq-mcp",
+    "bullmq",
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "claude-desktop",
+    "redis",
+    "queue",
+    "job-queue",
+    "queue-management",
+    "bullmq-claude",
+    "bullmq-integration",
+    "ai-assistant",
+    "mcp-server",
+    "redis-queue",
+    "job-management",
+    "bullmq-tools"
+  ],
+  "author": "Adam Hancock",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adamhancock/bullmq-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adamhancock/bullmq-mcp/issues"
+  },
+  "homepage": "https://github.com/adamhancock/bullmq-mcp#readme",
+  "packageManager": "pnpm@10.13.1",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.0",
+    "bullmq": "^5.56.9",
+    "ioredis": "^5.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}

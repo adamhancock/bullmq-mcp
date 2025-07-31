@@ -1,0 +1,40 @@
+# Source files
+src/
+*.ts
+!dist/**/*.d.ts
+
+# Configuration files
+tsconfig.json
+.gitignore
+claude_desktop_config.json
+
+# Development files
+node_modules/
+*.log
+.DS_Store
+.env
+.env.local
+
+# Editor files
+.idea/
+.vscode/
+*.sublime-*
+
+# Build artifacts
+*.tsbuildinfo
+
+# Test files
+coverage/
+.nyc_output/
+test/
+*.test.ts
+*.spec.ts
+
+# Git
+.git/
+.github/
+
+# Misc
+*.swp
+*.swo
+*~
