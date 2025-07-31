@@ -9,8 +9,8 @@ COPY package.json pnpm-lock.yaml ./
 # Install pnpm
 RUN npm install -g pnpm
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies (skip prepare script during install)
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy source code
 COPY tsconfig.json ./
