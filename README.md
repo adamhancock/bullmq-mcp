@@ -1,4 +1,5 @@
 # BullMQ MCP Server - Model Context Protocol for BullMQ Queue Management
+[![smithery badge](https://smithery.ai/badge/@adamhancock/bullmq-mcp)](https://smithery.ai/server/@adamhancock/bullmq-mcp)
 
 A comprehensive BullMQ MCP (Model Context Protocol) server for managing BullMQ Redis-based job queues. This BullMQ MCP integration enables Claude Desktop and other AI assistants to interact with BullMQ queues, monitor job status, manage workers, and perform queue operations through natural language.
 
@@ -16,6 +17,14 @@ A comprehensive BullMQ MCP (Model Context Protocol) server for managing BullMQ R
 - **🎯 Flexible Status Filtering**: Query jobs by various states (active, waiting, completed, failed, delayed)
 
 ## Installation - BullMQ MCP Setup
+
+### Installing via Smithery
+
+To install BullMQ Queue Management Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@adamhancock/bullmq-mcp):
+
+```bash
+npx -y @smithery/cli install @adamhancock/bullmq-mcp --client claude
+```
 
 ### NPM Installation
 
