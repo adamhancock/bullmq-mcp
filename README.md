@@ -174,6 +174,9 @@ Note: When using Docker, use `host.docker.internal` instead of `localhost` to co
   1. `url` parameter if provided
   2. `REDIS_URL` environment variable if set
   3. Individual connection parameters (host, port, password, db)
+  
+  **Docker Auto-redirect**: When running in a Docker container (detected via DOCKER env variable or DOCKER_HOST), 
+  `localhost` will automatically redirect to `host.docker.internal` to connect to Redis on the host machine.
 
 - **disconnect** - Disconnect from current Redis instance
 
@@ -505,8 +508,11 @@ for (const status of statuses) {
 
 When using the Docker version:
 
-- **Redis Connection**: Use `host.docker.internal:6379` instead of `localhost:6379` to connect to Redis running on your host
-- **Environment Variables**: Set `REDIS_URL=redis://host.docker.internal:6379` for automatic connection
+- **Redis Connection**: The server automatically redirects `localhost` to `host.docker.internal` when running in Docker, so you can use either:
+  - `redis://localhost:6379` (will auto-redirect)
+  - `redis://host.docker.internal:6379` (explicit Docker host)
+- **Connection Timeout**: Connections have a 10-second timeout to prevent hanging on unreachable hosts
+- **Environment Variables**: Set `REDIS_URL=redis://localhost:6379` - it will auto-redirect in Docker
 - **Network Access**: The Docker container needs network access to reach your Redis instance
 - **Persistence**: The container is ephemeral - all data is stored in Redis, not the container
 

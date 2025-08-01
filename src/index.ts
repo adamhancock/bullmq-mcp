@@ -58,7 +58,7 @@ function getQueue(queueName: string): Queue {
 const tools: Tool[] = [
   {
     name: "connect",
-    description: "Connect to Redis instance. Can use REDIS_URL environment variable if set.",
+    description: "Connect to Redis instance. Can use REDIS_URL environment variable if set. When running in Docker, localhost will automatically redirect to host.docker.internal.",
     inputSchema: {
       type: "object",
       properties: {
@@ -432,21 +432,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "connect": {
         const { id, host, port, password, db, url } = args as any;
         
+        // Check if running in Docker
+        const isDocker = process.env.DOCKER === 'true' || !!process.env.DOCKER_HOST;
+        
         // Check for Redis URL in args or environment
-        const redisUrl = url || process.env.REDIS_URL;
+        let redisUrl = url || process.env.REDIS_URL;
+        
+        // Auto-redirect localhost to Docker host when in Docker
+        if (isDocker && redisUrl && redisUrl.includes('localhost')) {
+          redisUrl = redisUrl.replace('localhost', 'host.docker.internal');
+        }
+        
+        // Determine final host
+        let finalHost = host || "localhost";
+        if (isDocker && finalHost === "localhost") {
+          finalHost = "host.docker.internal";
+        }
         
         let redis: Redis;
         if (redisUrl) {
           redis = new Redis(redisUrl, {
             maxRetriesPerRequest: null,
+            connectTimeout: 10000, // 10 second timeout
+            commandTimeout: 5000,  // 5 second command timeout
           });
         } else {
           redis = new Redis({
-            host: host || "localhost",
+            host: finalHost,
             port: port || 6379,
             password,
             db: db || 0,
             maxRetriesPerRequest: null,
+            connectTimeout: 10000, // 10 second timeout
+            commandTimeout: 5000,  // 5 second command timeout
           });
         }
 
@@ -462,9 +480,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         
         currentConnectionId = id;
         
-        const connectionInfo = redisUrl 
+        let connectionInfo = redisUrl 
           ? `Connected to Redis at ${redisUrl} (connection: ${id})`
-          : `Connected to Redis at ${host || "localhost"}:${port || 6379} (connection: ${id})`;
+          : `Connected to Redis at ${finalHost}:${port || 6379} (connection: ${id})`;
+        
+        // Add Docker redirect notice if applicable
+        if (isDocker && (finalHost === "host.docker.internal" || (redisUrl && redisUrl.includes('host.docker.internal')))) {
+          connectionInfo += "\n(Note: Automatically redirected localhost to host.docker.internal for Docker environment)";
+        }
         
         return {
           content: [
