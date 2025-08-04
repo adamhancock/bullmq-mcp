@@ -10,6 +10,41 @@ import {
 import { Queue, Worker, QueueEvents, Job } from "bullmq";
 import { Redis } from "ioredis";
 
+// Helper function to create Redis connection with TLS support for rediss:// URLs
+function createRedisConnection(redisUrl: string, options: any = {}): Redis {
+  if (redisUrl.startsWith('rediss://')) {
+    // Parse the URL to extract connection details
+    const url = new URL(redisUrl);
+    
+    const redisOptions = {
+      host: url.hostname,
+      port: parseInt(url.port) || 6379,
+      db: url.pathname ? parseInt(url.pathname.slice(1)) || 0 : 0,
+      ...options,
+      // Enable TLS for rediss:// URLs
+      tls: {
+        // Allow self-signed certificates (common with Heroku, ElastiCache, etc.)
+        rejectUnauthorized: false,
+        ...options.tls,
+      },
+    };
+    
+    // Add authentication if present
+    if (url.password) {
+      redisOptions.password = url.password;
+    }
+    
+    if (url.username && url.username !== '') {
+      redisOptions.username = url.username;
+    }
+    
+    return new Redis(redisOptions);
+  } else {
+    // For regular redis:// URLs, use the original behavior
+    return new Redis(redisUrl, options);
+  }
+}
+
 interface Connection {
   redis: Redis;
   queues: Map<string, Queue>;
@@ -451,7 +486,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         
         let redis: Redis;
         if (redisUrl) {
-          redis = new Redis(redisUrl, {
+          redis = createRedisConnection(redisUrl, {
             maxRetriesPerRequest: null,
             connectTimeout: 10000, // 10 second timeout
             commandTimeout: 5000,  // 5 second command timeout
