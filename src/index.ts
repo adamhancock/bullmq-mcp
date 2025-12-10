@@ -451,6 +451,66 @@ const tools: Tool[] = [
       required: ["queue"],
     },
   },
+  {
+    name: "move_failed_jobs_to_dlq",
+    description: "Move failed jobs to a dead letter queue with TTL. Designed for cleaning up old failed jobs that have been manually resolved.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        queue: {
+          type: "string",
+          description: "Source queue name",
+        },
+        jobName: {
+          type: "string", 
+          description: "Specific job name to filter (e.g., 'upsertHubspotContact')",
+        },
+        beforeTimestamp: {
+          type: "number",
+          description: "Unix timestamp in milliseconds - jobs created before this will be moved",
+        },
+        dlqKey: {
+          type: "string",
+          description: "Dead letter queue Redis key (outside BullMQ namespace)",
+          default: "dlq:failed_jobs",
+        },
+        ttlDays: {
+          type: "number",
+          description: "TTL in days for dead letter queue entries",
+          default: 30,
+        },
+        dryRun: {
+          type: "boolean",
+          description: "Preview what would be moved without actually moving",
+          default: false,
+        },
+      },
+      required: ["queue", "jobName", "beforeTimestamp"],
+    },
+  },
+  {
+    name: "query_dead_letter_queue",
+    description: "Query jobs in the dead letter queue",
+    inputSchema: {
+      type: "object", 
+      properties: {
+        dlqKey: {
+          type: "string",
+          description: "Dead letter queue Redis key",
+          default: "dlq:failed_jobs",
+        },
+        jobName: {
+          type: "string",
+          description: "Filter by job name (optional)",
+        },
+        limit: {
+          type: "number",
+          description: "Max number of jobs to return",
+          default: 10,
+        },
+      },
+    },
+  },
 ];
 
 // Register tools
@@ -930,6 +990,144 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: `Queue ${queueName} drained`,
+            },
+          ],
+        };
+      }
+
+      case "move_failed_jobs_to_dlq": {
+        const { 
+          queue: queueName, 
+          jobName, 
+          beforeTimestamp, 
+          dlqKey = "dlq:failed_jobs", 
+          ttlDays = 30,
+          dryRun = false 
+        } = args as any;
+        
+        const queue = getQueue(queueName);
+        const connection = getCurrentConnection();
+        const redis = connection.redis;
+        
+        // Get all failed jobs in batches
+        const batchSize = 100;
+        let start = 0;
+        let totalMoved = 0;
+        let movedJobs: any[] = [];
+        
+        while (true) {
+          const failedJobs = await queue.getFailed(start, start + batchSize - 1);
+          if (failedJobs.length === 0) break;
+          
+          const jobsToMove = failedJobs.filter(job => 
+            job.name === jobName && 
+            job.timestamp < beforeTimestamp
+          );
+          
+          if (jobsToMove.length === 0) {
+            start += batchSize;
+            continue;
+          }
+          
+          for (const job of jobsToMove) {
+            const dlqEntry = {
+              originalJobId: job.id,
+              jobName: job.name,
+              data: job.data,
+              failedReason: job.failedReason,
+              attemptsMade: job.attemptsMade,
+              timestamp: job.timestamp,
+              movedAt: Date.now(),
+              originalQueue: queueName,
+              stacktrace: job.stacktrace,
+            };
+            
+            if (!dryRun) {
+              // Store in dead letter queue with TTL
+              const dlqEntryKey = `${dlqKey}:${job.id}`;
+              await redis.setex(
+                dlqEntryKey, 
+                ttlDays * 24 * 60 * 60, // Convert days to seconds
+                JSON.stringify(dlqEntry)
+              );
+              
+              // Remove from BullMQ failed queue
+              await job.remove();
+            }
+            
+            movedJobs.push({
+              jobId: job.id,
+              timestamp: job.timestamp,
+              email: job.data?.properties?.email || 'N/A',
+              failedReason: job.failedReason,
+            });
+            totalMoved++;
+          }
+          
+          start += batchSize;
+        }
+        
+        // Also create an index for easier querying
+        if (!dryRun && totalMoved > 0) {
+          const indexKey = `${dlqKey}:index:${jobName}`;
+          const indexEntry = {
+            jobName,
+            totalJobs: totalMoved,
+            movedAt: Date.now(),
+            beforeTimestamp,
+            ttlDays,
+          };
+          await redis.setex(
+            indexKey,
+            ttlDays * 24 * 60 * 60,
+            JSON.stringify(indexEntry)
+          );
+        }
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: dryRun 
+                ? `DRY RUN: Would move ${totalMoved} failed "${jobName}" jobs created before ${new Date(beforeTimestamp).toISOString()}\n\nSample jobs:\n${movedJobs.slice(0, 5).map(j => `- Job ${j.jobId}: ${j.email} (${j.failedReason})`).join('\n')}`
+                : `Successfully moved ${totalMoved} failed "${jobName}" jobs to dead letter queue "${dlqKey}" with ${ttlDays} day TTL\n\nMoved jobs will auto-expire on: ${new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000).toISOString()}`,
+            },
+          ],
+        };
+      }
+
+      case "query_dead_letter_queue": {
+        const { dlqKey = "dlq:failed_jobs", jobName, limit = 10 } = args as any;
+        const connection = getCurrentConnection();
+        const redis = connection.redis;
+        
+        // Get keys matching the pattern
+        const pattern = jobName ? `${dlqKey}:*` : `${dlqKey}:*`;
+        const keys = await redis.keys(pattern);
+        
+        // Filter out index keys
+        const jobKeys = keys.filter(key => !key.includes(':index:'));
+        
+        const jobs = [];
+        for (let i = 0; i < Math.min(jobKeys.length, limit); i++) {
+          const jobData = await redis.get(jobKeys[i]);
+          if (jobData) {
+            const parsed = JSON.parse(jobData);
+            if (!jobName || parsed.jobName === jobName) {
+              jobs.push(parsed);
+            }
+          }
+        }
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: jobs.length === 0 
+                ? `No jobs found in dead letter queue "${dlqKey}"${jobName ? ` for job type "${jobName}"` : ''}`
+                : `Found ${jobs.length} jobs in dead letter queue:\n\n${jobs.map(job => 
+                    `Job ${job.originalJobId} (${job.jobName}):\n- Email: ${job.data?.properties?.email || 'N/A'}\n- Failed: ${job.failedReason}\n- Moved: ${new Date(job.movedAt).toISOString()}`
+                  ).join('\n\n')}`,
             },
           ],
         };
